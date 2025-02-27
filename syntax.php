@@ -41,9 +41,13 @@ class syntax_plugin_lightmenu extends SyntaxPlugin
 			elseif ($name === $this->_lm_start)
 				continue;
 			elseif (is_file($filepath)
-				&& (substr($name,-4) === '.txt')
-				&& (! isset($tree[0][$label = substr($name,0,-4)])))
+				&& (substr($name,-4) === '.txt'))
+			{
+				$label = substr($name,0,-4);
+				if (is_dir($path.'/'.$label) || ($label === basename($path)))
+					continue;
 				$tree[1][$label] = null;
+			}
 		}
 		ksort($tree[0]);
 		ksort($tree[1]);
@@ -67,7 +71,8 @@ class syntax_plugin_lightmenu extends SyntaxPlugin
 			$html .= '<div class="child">'.PHP_EOL;
 			$html .= sprintf('<input type="checkbox" id="lm-%s%s" />',$prefix,$name);
 			$html .= sprintf('<label class="label" for="lm-%s%s"><a href="doku.php?id=%s%s:">%s</a></label>'.PHP_EOL,$prefix,$name,$prefix,$name,trim($name));
-			$html .= '<div class="tree">'.PHP_EOL.$this->_html($children,$prefix.$name.':').'</div>'.PHP_EOL;
+			if (count($children) > 0)
+				$html .= '<div class="tree">'.PHP_EOL.$this->_html($children,$prefix.$name.':').'</div>'.PHP_EOL;
 			$html .= '</div>'.PHP_EOL;
 		}
 		foreach ($data[1] as $name => $null)
