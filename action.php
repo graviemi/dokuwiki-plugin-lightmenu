@@ -19,8 +19,8 @@ class action_plugin_lightmenu extends ActionPlugin
 		if (! is_readable($path))
 			return;
 
-		if (($event->data['changeType'] === DOKU_CHANGE_TYPE_CREATE)
-			|| ($event->data['changeType'] === DOKU_CHANGE_TYPE_DELETE))
+/*		if (($event->data['changeType'] === DOKU_CHANGE_TYPE_CREATE)
+			|| ($event->data['changeType'] === DOKU_CHANGE_TYPE_DELETE))*/
 			touch($path);
 	}
 }
