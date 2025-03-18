@@ -48,8 +48,6 @@ div.lm .label {
 	position: relative;
 	display: inline-block;
 	background: #fff;
-	text-wrap: nowrap;
-	text-overflow: ellipsis;
 }
 
 div.lm label.label {

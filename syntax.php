@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__.'/lightmenu.class.php';
+
 use dokuwiki\Extension\SyntaxPlugin;
 
 class syntax_plugin_lightmenu extends SyntaxPlugin
@@ -77,7 +79,7 @@ class syntax_plugin_lightmenu extends SyntaxPlugin
 
 	public function handle($match, $state, $pos, Doku_Handler $handler)
 	{
-		global $conf, $ID;
+		global $conf, $INFO, $ID;
 
 		try 
 		{
@@ -88,21 +90,9 @@ class syntax_plugin_lightmenu extends SyntaxPlugin
 			}
 			elseif (preg_match('|^<lm:([^>]+)>$|',$match,$matches))
 			{
-				$_id = ':'.$ID;
 				$data = json_decode($matches[1],true,2,JSON_THROW_ON_ERROR);
-				$pos = strrpos($_id,':');
-				$path = strtr(substr($_id,0,$pos),':','/');
-				$name = substr($_id,$pos + 1);
-				$page_path = sprintf('%s%s/%s.txt',$conf['datadir'],$path,$name);
-				if ($name === $conf['start'] && ($path !== ''))
-					$meta_path = sprintf('%s/%s.lightmenu.json',$conf['metadir'],$path);
-				elseif (is_dir(sprintf('%s/%s/%s',$conf['datadir'],$path,$name)))
-					$meta_path = sprintf('%s/%s.lightmenu.json',$conf['metadir'],$path);
-				elseif (basename($path) === $name)
-					$meta_path = sprintf('%s/%s.lightmenu.json',$conf['metadir'],$path);
-				else
-					$meta_path = sprintf('%s%s/%s.txt.lightmenu.json',$conf['metadir'],$path,$name);
-				if ((! file_exists($meta_path)) || (filemtime($page_path) > filemtime($meta_path)))
+				$meta_path = lightmenu::meta_path($ID);
+				if ((! file_exists($meta_path)) || (filemtime($INFO['filepath']) > filemtime($meta_path)))
 					file_put_contents($meta_path,json_encode($data));
 				return null;
 			}
