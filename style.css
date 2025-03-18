@@ -54,7 +54,7 @@ div.lm label.label {
 	cursor: pointer;
 }
 
-div.lm span.current {
+div.lm .current {
 	font-weight: bold;
 }
 

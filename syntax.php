@@ -142,8 +142,8 @@ class syntax_plugin_lightmenu extends SyntaxPlugin
 		{
 			$label = $this->_label($id,$metas);
 			$html .= '<div class="child">'.PHP_EOL;
-			$html .= sprintf('<input type="checkbox" id="lm-%s%s" />',$prefix,$id);
-			$html .= sprintf('<label class="label" for="lm-%s%s"><a%s%s title="%s" href="doku.php?id=%s%s:">%s</a></label>'.PHP_EOL,$prefix,$id,
+			$html .= sprintf('<input type="checkbox" id="checkbox-%s%s" />',$prefix,$id);
+			$html .= sprintf('<label class="label" id="lm-%s%s" for="checkbox-%s%s"><a%s%s title="%s" href="doku.php?id=%s%s:">%s</a></label>'.PHP_EOL,$prefix,$id,$prefix,$id,
 				$this->_attribute('class',$metas['class'] ?? ''),$this->_attribute('style',$metas['style'] ?? ''),
 				$label,$prefix,$id,trim($label));
 			if (count($children) > 0)
@@ -164,14 +164,14 @@ class syntax_plugin_lightmenu extends SyntaxPlugin
 		global $conf, $ID;
 
 		if ($data === null)
-			return true;
-		if (is_string($data))
-		{
-			$renderer->doc .= sprintf('<p class="lm_error">%s</p>',$data);
-			return true;
-		}
-
+			return false;
 		if ($format == 'xhtml') {
+			if (is_string($data))
+			{
+				$renderer->doc .= sprintf('<p class="lm_error">%s</p>',$data);
+				return true;
+			}
+
 			$renderer->doc .= '<div class="lm">';
 			$renderer->doc .= $this->_page('',$data[0][0],$data[0][1]);
 			$renderer->doc .= $this->_html($data[1]);
