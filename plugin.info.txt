@@ -1,7 +1,7 @@
 base   lightmenu
 author Michel Gravier
 email  michel.gravier@univ-grenoble-alpes.fr
-date   2025-02-27
+date   2025-03-18
 name   Light menu plugin
 desc   Very simple plugin which display pure CSS tree menu (inspired from "bisserof" https://codepen.io/bisserof) of wiki hierarchy. Meant to be placed in the sidebar.txt file.
 url    https://www.dokuwiki.org/plugin:lightmenu
