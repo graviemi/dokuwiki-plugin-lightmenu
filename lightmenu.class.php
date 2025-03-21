@@ -197,8 +197,7 @@ class lightmenu
 
 		foreach ($metas as $name => $value)
 		{
-			if ((strncmp($name,'label',5) === 0)
-				|| ($name === 'head') || ($name === 'title'))
+			if ((strncmp($name,'label',5) === 0) || ($name === 'head') || ($name === 'title') || ($name === 'href'))
 				continue;
 			$html .= sprintf(' %s="%s"',$name,$value);
 		}
@@ -210,8 +209,8 @@ class lightmenu
 	{
 		$label = self::_get_label($id,$metas);
 		$html = '<div class="child">'.PHP_EOL;
-		$html .= sprintf('<span class="label" id="lm-%s%s"><a%s title="%s" href="doku.php?id=%s%s">%s</a></span>'.PHP_EOL,
-			$prefix,$id,self::_format_attributes($metas),isset($metas['title'])?$metas['title']:$label,$prefix,$id,trim($label));
+		$html .= sprintf('<span class="label" id="lm-%s%s"><a%s title="%s" href="%s">%s</a></span>'.PHP_EOL,
+			$prefix,$id,self::_format_attributes($metas),isset($metas['title'])?$metas['title']:$label,wl($prefix.$id),trim($label));
 		$html .= '</div>'.PHP_EOL;
 		return $html;
 	}
@@ -227,8 +226,8 @@ class lightmenu
 			$label = self::_get_label($id,$metas);
 			$html .= '<div class="child">'.PHP_EOL;
 			$html .= sprintf('<input type="checkbox" id="checkbox-%s%s" />',$prefix,$id);
-			$html .= sprintf('<label class="label" id="lm-%s%s" for="checkbox-%s%s"><a%s title="%s" href="doku.php?id=%s%s:">%s</a></label>'.PHP_EOL,$prefix,$id,$prefix,$id,
-				self::_format_attributes($metas),isset($metas['title'])?$metas['title']:$label,$prefix,$id,trim($label));
+			$html .= sprintf('<label class="label" id="lm-%s%s" for="checkbox-%s%s"><a%s title="%s" href="%s">%s</a></label>'.PHP_EOL,$prefix,$id,$prefix,$id,
+				self::_format_attributes($metas),isset($metas['title'])?$metas['title']:$label,wl($prefix.$id),trim($label));
 			if (count($children) > 0)
 				$html .= '<div class="tree">'.PHP_EOL.self::_get_html($children,$prefix.$id.':').'</div>'.PHP_EOL;
 			$html .= '</div>'.PHP_EOL;
