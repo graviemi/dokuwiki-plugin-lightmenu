@@ -11,6 +11,10 @@ class lightmenu
 
 	protected static $options;
 
+	protected static function _log(string $format, string ...$params)
+	{
+		file_put_contents(__DIR__.'/lightmenu.log',date('Y/m/d H:i:s').':'.vsprintf($format,$params),FILE_APPEND);
+	}
 
 	protected static function _options(string $match) : array
 	{
@@ -43,17 +47,11 @@ class lightmenu
 		$pos = strrpos($_id,':');
 		$path = strtr(substr($_id,0,$pos),':','/');
 		$name = substr($_id,$pos + 1);
-		file_put_contents('/home/michel/Documents/projects/dokuwiki-plugin-lightmenu/lightmenu.log',
-			sprintf("%s _meta_path :\n    id:%s\n   _id:%s\n  path:%s\n  name:%s\n",date('Y/m/d H:i:s')
-				,$id,$_id,$path,$name),FILE_APPEND);
 		if (($name === $conf['start'] && ($path !== '')) || (basename($path) === $name))
 			return $path;
-//			return sprintf('%s.lightmenu.json',$path);
 		if (is_dir(sprintf('%s%s/%s',$conf['datadir'],$path,$name)))
 			return sprintf('%s/%s',$path,$name);
-//			return sprintf('%s/%s.lightmenu.json',$path,$name);
 		return sprintf('%s/%s.txt',$path,$name);
-//		return sprintf('%s%s/%s.txt.lightmenu.json',$conf['metadir'],$path,$name);
 	}
 
 	// function give lightmenu meta data file path from page id and environment
@@ -63,18 +61,16 @@ class lightmenu
 	{
 		global $conf;
 
-		$_id = ':'.$id;
-		$pos = strrpos($_id,':');
-		$path = strtr(substr($_id,0,$pos),':','/');
-		$name = substr($_id,$pos + 1);
-		file_put_contents('/home/michel/Documents/projects/dokuwiki-plugin-lightmenu/lightmenu.log',
-			sprintf("%s _subpath :\n    id:%s\n   _id:%s\n  path:%s\n  name:%s\n",date('Y/m/d H:i:s')
-				,$id,$_id,$path,$name),FILE_APPEND);
+		$parts = explode(':',$id);
+		$path = implode('/',array_map(function ($e) {
+			return rawurlencode($e);
+		}, array_slice($parts, 0, -1)));
+		$name = rawurlencode($parts[count($parts) - 1]);
 		if (($name === $conf['start'] && ($path !== '')) || (basename($path) === $name))
 			return $path;
-		if (is_dir(sprintf('%s%s/%s',$conf['datadir'],$path,$name)))
-			return sprintf('%s/%s',$path,$name);
-		return sprintf('%s/%s.txt',$path,$name);
+		if (is_dir(sprintf('%s/%s/%s',$conf['datadir'],$path,$name)))
+			return sprintf('/%s/%s',$path,$name);
+		return sprintf('/%s/%s.txt',$path,$name);
 	}
 
 
@@ -90,15 +86,12 @@ class lightmenu
 		global $conf;
 
 		$path = sprintf('%s%s/%s.lightmenu.json',$conf['metadir'],$subpath,$name);
-		file_put_contents('/home/michel/Documents/projects/dokuwiki-plugin-lightmenu/lightmenu.log',
-			sprintf("%s _get_page_data :\n  path:%s\n",date('Y/m/d H:i:s'),$path),FILE_APPEND);
-
 		$data = [];
 		if (is_file($path) && is_readable($path))
 			$data = json_decode(file_get_contents($path),true,2,JSON_THROW_ON_ERROR);
 		return [
 			$is_page = substr($name,-4) === '.txt',
-			($is_page)?substr($name,0,-4):$name,
+			rawurldecode(($is_page)?substr($name,0,-4):$name),
 			$data
 		];
 	}
@@ -108,14 +101,17 @@ class lightmenu
 		global $conf;
 
 		$path = sprintf('%s%s.lightmenu.json',$conf['metadir'],$subpath);
-		file_put_contents('/home/michel/Documents/projects/dokuwiki-plugin-lightmenu/lightmenu.log',
-			sprintf("%s _set_page_data :\n  path:%s\n",date('Y/m/d H:i:s'),$path),FILE_APPEND);
 		if (is_file($path) && (! is_writable($path)))
 			throw new Exception(sprintf('Lightmenu : meta data file "%s" not writable.',$path));
 		if (is_file($path) && (count($data) === 0))
 			unlink($path);
-		elseif (file_put_contents($path,json_encode($data,JSON_THROW_ON_ERROR)) === false)
-			throw new Exception('Lightmenu unable to write meta data.');
+		else
+		{
+			if (! is_dir(dirname($path)))
+				mkdir(dirname($path),0755,true);
+			if (file_put_contents($path,json_encode($data,JSON_THROW_ON_ERROR)) === false)
+				throw new Exception('Lightmenu unable to write meta data.');
+		}
 	}
 
 	protected static function _touch_sidebar()
@@ -155,7 +151,8 @@ class lightmenu
 				$tree[0][] = [$id,$data,self::_browse($subpath.'/'.$name)];
 			elseif ($is_page)
 			{
-				if (($id === $conf['start']) || is_dir($path.'/'.$id) || ($id === basename($path)))
+				$short = substr($name,0,strrpos($name,'.'));
+				if (($id === $conf['start']) || is_dir($path.'/'.$short) || ($short === basename($path)))
 					continue;
 				$tree[1][] = [$id,$data];
 			}
