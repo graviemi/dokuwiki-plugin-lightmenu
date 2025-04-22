@@ -224,7 +224,7 @@ class lightmenu
 			$html .= '<div class="child">'.PHP_EOL;
 			$html .= sprintf('<input type="checkbox" id="checkbox-%s%s" />',$prefix,$id);
 			$html .= sprintf('<label class="label" id="lm-%s%s" for="checkbox-%s%s"><a%s title="%s" href="%s">%s</a></label>'.PHP_EOL,$prefix,$id,$prefix,$id,
-				self::_format_attributes($metas),isset($metas['title'])?$metas['title']:$label,wl($prefix.$id),trim($label));
+				self::_format_attributes($metas),isset($metas['title'])?$metas['title']:$label,wl($prefix.$id.':'),trim($label));
 			if (count($children) > 0)
 				$html .= '<div class="tree">'.PHP_EOL.self::_get_html($children,$prefix.$id.':').'</div>'.PHP_EOL;
 			$html .= '</div>'.PHP_EOL;
