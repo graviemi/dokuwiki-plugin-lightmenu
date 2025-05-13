@@ -6,10 +6,11 @@ class lightmenu
 {
 	protected static $syntax = [
 		'|^-head$|' => 'head',
-		'|^-min=(\d+)$|' => 'min'
+		'|^-min=(\d+)$|' => 'min',
+		'|^-sort=([\w,]+)$|' => 'sort'
 	];
-
 	protected static $options;
+	protected static $collator;
 
 	protected static function _log(string $format, string ...$params)
 	{
@@ -18,7 +19,7 @@ class lightmenu
 
 	protected static function _options(string $match) : array
 	{
-		$options = [];
+		self::$options = [];
 
 		$list = preg_split('|\s+|',$match);
 		foreach ($list as $option)
@@ -27,13 +28,13 @@ class lightmenu
 			{
 				if (preg_match($regex,$option,$matches))
 				{
-					$options[$name] = (count($matches) === 2)?$matches[1]:true;
+					self::$options[$name] = (count($matches) === 2)?$matches[1]:true;
 					break;
 				}
 			}
 		}
 
-		return $options;
+		return self::$options;
 	}
 
 	// function give lightmenu meta data file path from page id and environment
@@ -100,7 +101,7 @@ class lightmenu
 	{
 		global $conf;
 
-		$path = sprintf('%s%s.lightmenu.json',$conf['metadir'],$subpath);
+		$path = sprintf('%s%s.lightmenu.json',$conf['metadir'],'/'.ltrim($subpath,'/'));
 		if (is_file($path) && (! is_writable($path)))
 			throw new Exception(sprintf('Lightmenu : meta data file "%s" not writable.',$path));
 		if (is_file($path) && (count($data) === 0))
@@ -133,11 +134,20 @@ class lightmenu
 		self::_touch_sidebar();
 	}
 
-	protected static function _browse(string $subpath = '') : array
+	protected static function _str_compare(string $a, string $b, bool $use_locale = false) : int
+	{
+		if (self::$collator === null)
+			return strcmp($a,$b) * (($a === '')?-1:1) * (($b === '')?-1:1);
+		else
+			return self::$collator->compare($a,$b);
+	}
+
+	protected static function _browse(string $subpath = '', string $sort_criteria = '') : array
 	{
 		global $conf;
 
-		$tree = [[],[]];
+		$tree = [];
+		$times = [];
 		$path = $conf['datadir'].$subpath;
 		$list = scandir($path);
 
@@ -148,18 +158,43 @@ class lightmenu
 			$filepath = $path.'/'.$name;
 			[$is_page,$id,$data] = self::_get_page_data($subpath,$name);
 			if (is_dir($filepath))
-				$tree[0][] = [$id,$data,self::_browse($subpath.'/'.$name)];
+				$tree[] = [$id,$data,self::_browse($subpath.'/'.$name,$data['_sort'] ?? $sort_criteria)];
 			elseif ($is_page)
 			{
 				$short = substr($name,0,strrpos($name,'.'));
 				if (($id === $conf['start']) || is_dir($path.'/'.$short) || ($short === basename($path)))
 					continue;
-				$tree[1][] = [$id,$data];
+				$tree[] = [$id,$data];
 			}
+			$times[$id] = filemtime($filepath);
 		}
-		$sort = function ($a,$b) { return strcmp($a[0],$b[0]); };
-		usort($tree[0],$sort);
-		usort($tree[1],$sort);
+		if ($sort_criteria === '')
+			$sort_criteria = self::$options['sort'] ?? 'type_asc,id_asc';
+		$sort = function ($a,$b) use (&$times,$sort_criteria) {
+			$orders = explode(',',$sort_criteria);
+			foreach ($orders as $order)
+			{
+				if (! preg_match('/^([^_]+)_(asc|desc)$/',$order,$matches))
+					continue;
+				[,$type,$dir] = $matches;
+				if ($type === 'type')
+					$diff = count($b) - count($a); // Count: 2 file, 3 folder. Folder come before file 
+				elseif ($type === 'id')
+					$diff = self::_str_compare($a[0],$b[0]);
+				elseif ($type === 'date')
+					$diff = $times[$a[0]] - $times[$b[0]];
+				elseif ($type === 'label')
+					$diff = self::_str_compare($a[1]['label'] ?? ($a[1]['head'] ?? ''),$b[1]['label'] ?? ($b[1]['head'] ?? ''));
+				elseif (is_int($a[1][$key = '_oc_'.$type] ?? '') || is_int($b[1][$key] ?? ''))
+					$diff = ($a[1][$key] ?? ($b[1][$key] + 1)) - ($b[1][$key] ?? ($a[1][$key] + 1));
+				else
+					$diff = self::_str_compare($a[1]['_oc_'.$type] ?? '',$b[1]['_oc_'.$type] ?? '');
+				if ($diff !== 0)
+					return ($dir === 'asc')?$diff:-$diff;
+			}
+			return self::_str_compare($a[0],$b[0]);
+		};
+		usort($tree,$sort);
 		return $tree;
 	}
 
@@ -171,8 +206,13 @@ class lightmenu
 	{
 		global $conf;
 
+		if (extension_loaded('intl'))
+			self::$collator = new Collator($conf['lang']);
+		else
+			self::$collator = null;
+		lightmenu::_options($options);
 		[$is_page,$id,$data] = self::_get_page_data('',$conf['start'].'.txt');
-		return [[$id,$data],self::_browse(),lightmenu::_options($options)];
+		return [[$id,$data],self::_browse(),self::$options];
 	} 
 
 	protected static function _get_label(string $id,array &$data) : string
@@ -194,7 +234,7 @@ class lightmenu
 
 		foreach ($metas as $name => $value)
 		{
-			if ((strncmp($name,'label',5) === 0) || ($name === 'head') || ($name === 'title') || ($name === 'href'))
+			if ((strncmp($name,'label',5) === 0) || ($name === 'head') || ($name === 'title') || ($name === 'href') || (strncmp($name,'_',1) === 0))
 				continue;
 			$html .= sprintf(' %s="%s"',$name,$value);
 		}
@@ -218,23 +258,30 @@ class lightmenu
 
 		$html = '';
 
-		foreach ($data[0] as [$id,$metas,$children])
+		foreach ($data as $values)
 		{
-			$label = self::_get_label($id,$metas);
-			$html .= '<div class="child">'.PHP_EOL;
-			$html .= sprintf('<input type="checkbox" id="checkbox-%s%s" />',$prefix,$id);
-			$html .= sprintf('<label class="label" id="lm-%s%s" for="checkbox-%s%s"><a%s title="%s" href="%s">%s</a></label>'.PHP_EOL,$prefix,$id,$prefix,$id,
+			$n = count($values);
+			if ($n === 3)
+			{
+				[$id,$metas,$children] = $values;
+				$label = self::_get_label($id,$metas);
+				$html .= '<div class="child">'.PHP_EOL;
+				$html .= sprintf('<input type="checkbox" id="checkbox-%s%s" />',$prefix,$id);
+				$html .= sprintf('<label class="label" id="lm-%s%s" for="checkbox-%s%s"><a%s title="%s" href="%s">%s</a></label>'.PHP_EOL,$prefix,$id,$prefix,$id,
 				self::_format_attributes($metas),isset($metas['title'])?$metas['title']:$label,wl($prefix.$id.':'),trim($label));
-			if (count($children) > 0)
-				$html .= '<div class="tree">'.PHP_EOL.self::_get_html($children,$prefix.$id.':').'</div>'.PHP_EOL;
-			$html .= '</div>'.PHP_EOL;
-		}
-
-		foreach ($data[1] as [$id,$metas])
-		{
-			if (($prefix === '') && ($id === $conf['sidebar']))
-				continue;
-			$html .= self::_get_page($prefix,$id,$metas);
+				if (count($children) > 0)
+					$html .= '<div class="tree">'.PHP_EOL.self::_get_html($children,$prefix.$id.':').'</div>'.PHP_EOL;
+				$html .= '</div>'.PHP_EOL;
+			}
+			elseif ($n === 2)
+			{
+				[$id,$metas] = $values;
+				if (($prefix === '') && ($id === $conf['sidebar']))
+					continue;
+				$html .= self::_get_page($prefix,$id,$metas);
+			}
+			else
+				throw new Exception('lightmenu error : wrong entry data count');
 		}
 
 		return $html;
